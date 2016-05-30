@@ -64,6 +64,7 @@ var VMRCRE = (function () {
 
 	context_input_form_onload: function () {
 	    VMRCRE.loadVersification();
+		CL.context_input_onload(vmr_services._project);
 	},
 	
 	get_context_from_input_form : function () {
