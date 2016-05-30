@@ -8,9 +8,7 @@ class Regulariser(object):
         module_name = rule_conditions_config['python_file']
         class_name = rule_conditions_config['class_name']
         MyClass = getattr(importlib.import_module(module_name), class_name)
-        self.instance = MyClass()
-        
-        
+        self.instance = MyClass()       
         if local_python_functions:
             self.local_python_functions = local_python_functions
             module_name = local_python_functions['prepare_t']['python_file']
@@ -20,7 +18,7 @@ class Regulariser(object):
         else:
             self.local_python_functions = None
     
-    #imports needs to be more efficient - should only be once per collation not each token
+
     def match_tokens(self, token, decision, stage):
         decision_word = decision['t']
         token_matches = token['rule_match']
@@ -56,6 +54,7 @@ class Regulariser(object):
             #we are not recording subtypes anymore so we need to check here t against n
             if (self.prepare_t(decision['t']) != decision['n'] and stage == 'pre-collate') \
                     or (self.prepare_t(decision['t']) == decision['n'] and stage == 'post-collate'): 
+                
                 if decision['scope'] == u'always' \
                     or decision['scope'] == u'verse' \
                     or (decision['scope'] == u'manuscript' \
@@ -73,8 +72,9 @@ class Regulariser(object):
         matched = False
         for i, match_d in enumerate(decision_matches):
             if last_match and last_match[0] == True:
-                #append the last matched n to the list of match word in the token to allow chaining
-                token['rule_match'].append(last_match[1])
+                #append the last matched n to the list of match word if its not in there in the token to allow chaining
+                if last_match[1] not in token['rule_match']:
+                    token['rule_match'].append(last_match[1])
             match = self.match_tokens(token, match_d, stage)
             if match[0] == True:
                 last_match = match
@@ -89,8 +89,7 @@ class Regulariser(object):
     def prepare_t(self, data):
         """the result of this determines if a rule is to be applied pre- or post-collate
         It should match whatever you do to the tokens to prepare them for collation"""
-        if self.local_python_functions and 'prepare_t' in self.local_python_functions:
-            
+        if self.local_python_functions and 'prepare_t' in self.local_python_functions:           
             return getattr(self.prepare_t_instance, self.local_python_functions['prepare_t']['function'])(data, self.settings, self.display_settings_config)
         else :
             #default is not to touch the input
