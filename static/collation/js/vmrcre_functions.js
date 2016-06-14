@@ -62,9 +62,11 @@ var VMRCRE = (function () {
 	    }
 	},
 
-	context_input_form_onload: function () {
-	    VMRCRE.loadVersification();
-		CL.context_input_onload(vmr_services._project);
+	context_input_form_onload: function(callback) {
+	    VMRCRE.loadVersification(function() {
+			CL.context_input_onload(vmr_services._project);
+			if (callback) callback();
+		});
 	},
 	
 	get_context_from_input_form : function () {

@@ -174,6 +174,52 @@ console.log('*** Error: _save_regularization_rule failed.');
 	    }).fail(function () { result_callback(null, 400); });
 	},
 
+	_load_project(project_name, result_callback) {
+		var params = {
+			sessionHash : vmr_services._vmr_session,
+			projectName : project_name,
+			detail : 'tasks'
+		};
+		$.post(_vmr_api+'projectmanagement/project/get/', params, function(data) {
+			var p = $.extend(true, {}, vmr_services._project_default);
+			p._id = $(data).find('projects > project').attr('name');
+			p.project = p._id;
+			p.book_name = $(data).find('projects > project').attr('objectPart');
+			p.book = p.book_name;
+			p.managing_editor = vmr_services._user._id;
+			p.editors = [];
+			$(data).find('projects > project > userGroup > user').each(function() {
+				p.editors.push($(this).text());
+			});
+			p.witnesses = [p.base_text];
+			$(data).find('projects > project > documentGroup > documents > document').each(function() {
+				p.witnesses.push($(this).attr('docID'));
+			});
+
+			result_callback(p);
+		}).fail(function () {
+console.log('*** failed: _load_project');
+			result_callback(null);
+		});
+	},
+
+	_get_available_projects(result_callback) {
+		var params = {
+			sessionHash : vmr_services._vmr_session,
+			userName : vmr_services._user._id
+		};
+		$.post(_vmr_api+'projectmanagement/usergroup/get/', params, function(data) {
+			var projNames = [];
+			$(data).find('project').each(function() {
+				projNames.push($(this).attr('name'));
+			});
+			result_callback(projNames);
+		}).fail(function () {
+console.log('*** failed: _get_available_projects');
+			result_callback([]);
+		});
+	},
+
 	supported_rule_scopes: {
 //		'once'      : 'This place, these MSS', 
 		'verse'     : 'This verse, all MSS', 
@@ -235,8 +281,46 @@ console.log('*** Error: _save_regularization_rule failed.');
 	    }
 	},
 
+	_switch_project_dialog : $(`
+		<div>
+			<p>Choose Project: <select id="project_selection">
+				<option>ECM Matthew</option>
+			</select></p>
+			<button id="load_project">Load</button>
+		</div>`
+	),
+	switch_project : function () {	    
+		var d = vmr_services._switch_project_dialog;
+		$(d).dialog({
+			autoOpen: false,
+			title: 'Choose Project'
+		});
+		$('#load_project').off('click.load_project');
+		$('#load_project').on('click.load_project', function() {
+			$(d).dialog('close');
+			vmr_services._load_project($('#project_selection').val(), function(p) {
+				vmr_services._project = p;
+				CL.load_single_project_menu(p);
+			});
+		});
+		$('#switch_project_button').off('click.switch_project');
+		$('#switch_project_button').on('click.switch_project', function () {
+			CL._services.get_user_info(function (user) {
+				if (user) {
+					vmr_services._get_available_projects(function(projects) {
+						var t = '<option>' + projects.join('</option><option>') + '</option>';
+						$('#project_selection').html(t);
+						$('#project_selection').val(vmr_services._project._id);
+						$(d).dialog('open');
+					});
+				}
+			});
+		});
+	},
+
 	get_editing_projects : function (criteria, success_callback) {
 
+		vmr_services._project = $.extend(true, {}, vmr_services._project_default);
 		success_callback((!vmr_services._vmr_session || !vmr_services._vmr_session.length) ? [] : [vmr_services._project]);
 			
 	},
@@ -245,6 +329,7 @@ console.log('*** Error: _save_regularization_rule failed.');
 			CL._container = document.getElementById('container');
 			CL._services.get_user_info(function (user) {	// success
 				CL._services.get_editing_projects(undefined, function (projects) {
+					vmr_services._project = projects[0];
 					CL.load_single_project_menu(projects[0]);
 					CL._managing_editor = true;
 				});
@@ -484,8 +569,16 @@ console.log('local_service called');
 	    });
 	},
 
+	_project : null,
 
-	_project : {
+	_context_input_form_onload: function() {
+		VMRCRE.context_input_form_onload(function() {
+			$('#bookselect').val(vmr_services._project.book);
+			$('#bookselect').trigger('change');
+		});
+	},
+
+	_project_default : {
 			_id: 'ECM Matthew',
 			project: 'ECM Matthew',
 			V_for_supplied: true,
@@ -497,7 +590,7 @@ console.log('local_service called');
 			local_js_file : ['/collation/js/vmrcre_functions.js'],
 			context_input : {
 				'form': 'vmrcre_verse_selector.html', 
-				'onload_function': 'VMRCRE.context_input_form_onload', 
+				'onload_function': 'vmr_services._context_input_form_onload', 
 				'result_provider': 'VMRCRE.get_context_from_input_form'
 			},
 			managing_editor:'tagriffitts',
