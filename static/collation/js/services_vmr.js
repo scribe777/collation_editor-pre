@@ -503,11 +503,11 @@ console.log('local_service called');
 		collation._id = key;
 		vmr_services._get_resource(key, null, function(result, status) {
 		    // if exists
-		    if (status === 200) {
+		    if (status == 200) {
 			if (overwrite_allowed) {
 			    var confirmed = confirm(confirm_message);
 			    if (confirmed === true) {
-				local_services._put_resource(key, null, collation, function(result) {
+				vmr_services._put_resource(key, null, collation, function(result) {
 				    return result_callback(true);
 				});
 			    } else {
@@ -519,7 +519,7 @@ console.log('local_service called');
 			}
 		    } else {
 			// if doesn't already exist
-			local_services._put_resource(key, collation, function(result) {
+			vmr_services._put_resource(key, null, collation, function(result) {
 			    return result_callback(true);
 			});
 		    }
