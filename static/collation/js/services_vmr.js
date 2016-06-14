@@ -54,12 +54,12 @@ return {
 		}
 	},
 
-	_get_resource : function (resource_type, id, result_callback) {
+	_get_resource : function (resource_type, id, user, result_callback) {
 		var params = {
 			sessionHash : vmr_services._vmr_session,
 			format      : 'json',
 			projectName : vmr_services._project.project,
-			userName    : vmr_services._user._id,
+			userName    : (user?user:vmr_services._user._id),
 			key         : resource_type
 		};
 		if (id) {
@@ -67,8 +67,16 @@ return {
 		}
 
 		$.post(_data_store_service_url+'get/', params, function (resource) {
-			result_callback(resource, (resource == null?-1:200));
-		}, 'text').fail(function(o) {
+			// assert we have a result
+			if (resource == null)                return result_callback(null, -1);
+			// if we were passed a set of keys, then simply return the array result
+			if (resource_type.indexOf('|') > -1) return result_callback(resource, 200);
+			// if we were passed only 1 key and have only 1 result, return the result;
+			// otherwise, return the array.
+			// Slight cheese, but even if we saved an array object with one entry,
+			// we should get back [[{...}]], so we should be OK.
+			result_callback((resource.length == 1)?resource[0]:resource, 200);
+		}).fail(function(o) {
 			result_callback(null, o.status);
 		});
 	},
@@ -217,6 +225,26 @@ console.log('*** failed: _load_project');
 		}).fail(function () {
 console.log('*** failed: _get_available_projects');
 			result_callback([]);
+		});
+	},
+
+	_get_saved_user_collations : function(user, verse, result_callback, collations, i) {
+		var types = ['regularised', 'set', 'ordered', 'approved'];
+		if (typeof collations === 'undefined') {
+			collations = [];
+		}
+		if (typeof i === 'undefined') {
+			i = 0;
+		}
+		if (i >= types.length) {
+			return result_callback(collations);
+		}
+		var resource_type = 'collation/' + types[i] + '/'+verse;
+		vmr_services._get_resource(resource_type, null, user, function(collation, status) {
+			if (status === 200 && collation) {
+				collations.push(collation);
+			}
+			return vmr_services._get_saved_user_collations(user, verse, result_callback, collations, ++i);
 		});
 	},
 
@@ -500,8 +528,8 @@ console.log('local_service called');
 	    CL._services.get_user_info(function (user) {
 		var key = 'collation/'+collation.status+'/'+verse;
 		collation._meta = { _last_modified_time : { "$date" : new Date().getTime() }, _last_modified_by : user._id, _last_modified_by_display : user.name };
-		collation._id = key;
-		vmr_services._get_resource(key, null, function(result, status) {
+		collation._id = vmr_services._user._id+'/'+key;
+		vmr_services._get_resource(key, null, null, function(result, status) {
 		    // if exists
 		    if (status == 200) {
 			if (overwrite_allowed) {
@@ -533,7 +561,7 @@ console.log('local_service called');
 			'collation/ordered/'+verse,
 			'collation/approved/'+verse
 		];
-		this._get_resource(keys.join('|'), null, function(result, status) {
+		vmr_services._get_resource(keys.join('|'), null, null, function(result, status) {
 			if (status != 200) {
 				console.log('*** Error: get_saved_stage_ids failed.');
 				return result_callback(null, null, null, null);
@@ -541,17 +569,49 @@ console.log('local_service called');
 			result_callback(result[0], result[1], result[2], result[3]);
 		});
 	},
+
 	get_saved_collations : function (verse, user_id, result_callback, collations, users, i) {
-console.log('local_service called');
-		local_services.get_saved_collations(verse, user_id, result_callback, collations, users, i);
+		var resource_type;
+		if (typeof i === 'undefined') {
+			collations = [];
+			if (user_id) {
+				return get_saved_collations(verse, user_id, result_callback, collations, [user_id], 0);
+			}
+			else {
+				return vmr_services.get_saved_collations(verse, user_id, result_callback, collations, vmr_services._project.editors, 0);
+			}
+		}
+
+		if (i >= users.length) {
+			return result_callback(collations);
+		}
+
+		vmr_services._get_saved_user_collations(users[i], verse, function(user_collations) {
+			collations.push.apply(collations, user_collations);
+			vmr_services.get_saved_collations(verse, user_id, result_callback, collations, users, ++i);
+		});
 	},
+
 	get_user_info_by_ids : function (ids, success_callback) {
 console.log('local_service called');
 		local_services.get_user_info_by_ids(ids, success_callback);
 	},
 	load_saved_collation: function (id, result_callback) {
 console.log('local_service called');
-		local_services.load_saved_collation(id, result_callback);
+		var idSegs = id.split('/');
+		var user = null;
+		var rev = null;
+		if (idSegs[0] != 'collation') {
+			user = idSegs[0];
+			idSegs.shift();
+			if (idSegs[0] != 'collation') {
+				rev = idSegs[0];
+				idSegs.shift();
+			}
+		}
+		vmr_services._get_resource(idSegs.join('/'), null, user, function(result, status) {
+			result_callback(result);
+		});
 	},
 	do_collation : function(verse, options, result_callback) {
 	    var url;
