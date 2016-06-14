@@ -501,7 +501,7 @@ console.log('local_service called');
 		var key = 'collation/'+collation.status+'/'+verse;
 		collation._meta = { _last_modified_time : { "$date" : new Date().getTime() }, _last_modified_by : user._id, _last_modified_by_display : user.name };
 		collation._id = key;
-		this._get_resource(key, null, function(result, status) {
+		vmr_services._get_resource(key, null, function(result, status) {
 		    // if exists
 		    if (status === 200) {
 			if (overwrite_allowed) {
@@ -528,7 +528,7 @@ console.log('local_service called');
 	},
 	get_saved_stage_ids : function (verse, result_callback) {
 		var keys = [
-			'collation/regularise/'+verse,
+			'collation/regularised/'+verse,
 			'collation/set/'+verse,
 			'collation/ordered/'+verse,
 			'collation/approved/'+verse
@@ -765,7 +765,7 @@ console.log('local_service called');
             "suffixed_sigla": false
         }
     ],
-	witnesses:["1002800", "20001","20002", "20003", "20004", "20005", "20006", "20007"]
+	witnesses:["1002800", "20001"]
 }
 };})();
 
