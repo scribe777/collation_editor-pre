@@ -280,10 +280,7 @@ console.log('*** failed: _get_available_projects');
 				user.first_name = $(xml).find('firstName').text();
 				user.last_name = $(xml).find('lastName').text();
 				user.locale = 'en';
-				user.name = user.first_name;
-				var mn = $(xml).find('middleName').text();
-				if (mn.length) user.name += ' ' + mn;
-				user.name += ' ' + user.last_name;
+				user.name = $(xml).find('fullName').text();
 			}
 			else user = null;
 			vmr_services._user = user;
@@ -592,12 +589,42 @@ console.log('local_service called');
 		});
 	},
 
-	get_user_info_by_ids : function (ids, success_callback) {
-console.log('local_service called');
-		local_services.get_user_info_by_ids(ids, success_callback);
+	get_user_info_by_ids : function (ids, success_callback, user_infos, i) {
+		if (typeof i === "undefined") i = 0;
+		if (!i) user_infos = {};
+
+		if (i >= ids.length) return success_callback(user_infos);
+
+		if (vmr_services._user && vmr_services._user._id && ids[i] == vmr_services._user._id) {
+			user_infos[ids[i]] = vmr_services._user;
+			return vmr_services.get_user_info_by_ids(ids, success_callback, user_infos, ++i);
+		}
+		else {
+			var params = {
+				sessionHash : vmr_services._vmr_session,
+				userName : ids[i] 
+			};
+			$.post(_vmr_api+'projectmanagement/user/get/', params, function(xml) {
+				if ($(xml).find('error').length > 0) {
+console.log('*** Error: user/get failed.');
+					return vmr_services.get_user_info_by_ids(ids, success_callback, user_infos, ++i);
+				}
+				var user = {};
+				user._id = $(xml).find('user').attr('userName');
+				user.email = $(xml).find('emailAddress').text();
+				user.first_name = $(xml).find('firstName').text();
+				user.last_name = $(xml).find('lastName').text();
+				user.locale = 'en';
+				user.name = $(xml).find('fullName').text();
+				user_infos[ids[i]] = user;
+				return vmr_services.get_user_info_by_ids(ids, success_callback, user_infos, ++i);
+			}).fail(function () {
+console.log('*** failed: user/get');
+				return vmr_services.get_user_info_by_ids(ids, success_callback, user_infos, ++i);
+			});
+		}
 	},
 	load_saved_collation: function (id, result_callback) {
-console.log('local_service called');
 		if (id.split) {
 			var idSegs = id.split('/');
 			var user = null;

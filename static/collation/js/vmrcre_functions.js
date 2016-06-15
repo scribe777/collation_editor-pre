@@ -26,22 +26,23 @@ var VMRCRE = (function () {
 	},
 
 	bookSelectChanged : function() {
-	    var book = $("#bookselect").val();
-	    $("#chapterselect").html("");
-	    $("#chapterselect").append("<option></option>");
-	    if (book != null && book.length > 0) {
-		var params = {
-			subset : book
-		};
+		var book = $("#bookselect").val();
+		$("#chapterselect").html("");
+		$("#chapterselect").append("<option></option>");
+		if (book != null && book.length > 0) {
+			var params = {
+				subset : book
+			};
 
-		$.get(VMRCRE.servicesURL + '/metadata/v11n/get/', params, function(result) {
-		    var chapterMax = $(result).find('book').attr('chapterMax');
-		    for (var i = 1; i <= parseInt(chapterMax); ++i) {
-			$("#chapterselect").append("<option value='"+i+"'>"+i+"</option>");
-		    }
-		});
-	    }
-	    VMRCRE.chapterSelectChanged();
+			$.get(VMRCRE.servicesURL + '/metadata/v11n/get/', params, function(result) {
+				var chapterMax = $(result).find('book').attr('chapterMax');
+				for (var i = 1; i <= parseInt(chapterMax); ++i) {
+					$("#chapterselect").append("<option value='"+i+"'>"+i+"</option>");
+				}
+				$("#chapterselect").focus();
+			});
+		}
+		VMRCRE.chapterSelectChanged();
 	},
 
 	loadVersification : function(callback) {
