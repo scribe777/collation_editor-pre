@@ -598,20 +598,26 @@ console.log('local_service called');
 	},
 	load_saved_collation: function (id, result_callback) {
 console.log('local_service called');
-		var idSegs = id.split('/');
-		var user = null;
-		var rev = null;
-		if (idSegs[0] != 'collation') {
-			user = idSegs[0];
-			idSegs.shift();
+		if (id.split) {
+			var idSegs = id.split('/');
+			var user = null;
+			var rev = null;
 			if (idSegs[0] != 'collation') {
-				rev = idSegs[0];
+				user = idSegs[0];
 				idSegs.shift();
+				if (idSegs[0] != 'collation') {
+					rev = idSegs[0];
+					idSegs.shift();
+				}
 			}
+			vmr_services._get_resource(idSegs.join('/'), null, user, function(result, status) {
+				result_callback(result);
+			});
 		}
-		vmr_services._get_resource(idSegs.join('/'), null, user, function(result, status) {
-			result_callback(result);
-		});
+		// TODO: sometimes we're called with the actual collation object, no an ID. Is this OK?
+		else {
+			result_callback(id);
+		}
 	},
 	do_collation : function(verse, options, result_callback) {
 	    var url;
