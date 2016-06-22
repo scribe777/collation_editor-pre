@@ -415,17 +415,113 @@ console.log('*** failed: _get_available_projects');
 
 
 	update_rules : function(rules, verse, success_callback) {
-console.log('local_service called');
-		local_services.update_rules(rules, verse, success_callback);
+		var eachRule = function(origs, rules, finished_callback, i) {
+			if (!i) i = 0;
+			if (i >= rules.length) return finished_callback();
+
+			// be sure we're simply deleting an exeception
+			if (origs[i].exceptions && (!rules[i].exceptions || rules[i].exceptions.length < origs[i].exceptions.length)) {
+				var params = {
+					sessionHash : vmr_services._vmr_session,
+					groupName   : vmr_services._project.project,
+					userName    : vmr_services._user._id,
+					verse       : verse,
+					regID       : rules[i]._id
+				};
+				$.post(_vmr_api+'regularization/deleteexception/', params, function(data) {
+					if ($(data).find('error').length > 0) {
+console.log('*** Error: _delete_regularization_rule_exception error.');
+						alert($(data).find('error').attr('message'));
+					}
+					return eachRule(origs, rules, finished_callback, ++i);
+				}).fail(function(o) {
+console.log('*** Error: _delete_regularization_rule_exception failed.');
+					return eachRule(origs, rules, finished_callback, ++i);
+				});
+			}
+			else {
+				alert('we have been called to update a rule which is not a simple removal of exception');
+				return eachRule(origs, rules, finished_callback, ++i);
+			}
+		};
+
+		var ids = [];
+		for (var i = 0; i < rules.length; ++i) { ids.push(rules[i]._id); }
+		vmr_services.get_rules_by_ids(ids, function(origs) {
+			eachRule(origs, rules, success_callback);
+		});
 	},
+
 	get_rules_by_ids : function(ids, result_callback, rules, i) {
-console.log('local_service called');
-		local_services.get_rules_by_ids(ids, result_callback, rules, i);
+
+		if (!i) { rules = []; i = 0; }
+		if (i >= ids.length) return result_callback(rules);
+
+		var params = {
+			sessionHash : vmr_services._vmr_session,
+			indexContext : CL._context,
+			regID : ids[i]
+		};
+
+		$.post(_vmr_api+'regularization/get/', params, function(data) {
+			if ($(data).find('error').length > 0) {
+				alert ($(data).find('error').attr('message'));
+				return result_callback(rules);
+			}
+			$(data).find('regularization').each(function() {
+				var rule = {
+					_id : $(this).attr('regID'),
+					_model: 'decision',
+					_meta : {
+						_last_modified_time : new Date().getTime(),
+						_last_modified_by : $(this).attr('userID'),
+						_last_modified_by_display : $(this).attr('userID')
+					},
+					active : true,
+					type : 'regularisation',
+					project : $(this).attr('group'),
+					t : $(this).find('sourceWord').text(),
+					n : $(this).find('targetWord').text(),
+					'class' : $(this).attr('type').toLowerCase(),
+				}
+				if ($(this).attr('scope') == 'Global') {
+					rule.scope = 'always';
+					rule.context = {};
+				}
+				else {
+					rule.scope = 'verse';
+					rule.context = { unit : $(this).attr('contextVerse') };
+				}
+				if ($(this).find('comment').length) {
+					rule.comments = $(this).find('comment').text();
+				}
+				if ($(this).attr('optionsCodes')) {
+					rule.conditions = {};
+					var codes = $(this).attr('optionsCodes').split('|');
+					if (codes.indexOf('IGNORE_SUPPLIED') > -1) rule.conditions.ignore_supplied = true;
+					if (codes.indexOf('IGNORE_UNCLEAR') > -1) rule.conditions.ignore_unclear = true;
+					if (codes.indexOf('ONLY_NOMSAC') > -1) rule.conditions.only_nomsac = true;
+				}
+				if ($(this).find('verseException').length) {
+					rule.exceptions = [];
+					$(this).find('verseException').each(function() {
+						rule.exceptions.push($(this).attr('verse'));
+					});
+				}
+				rules.push(rule);
+			});
+			return vmr_services.get_rules_by_ids(ids, result_callback, rules, ++i);
+		}).fail(function(o) {
+			console.log('*** failed: vmr_services.get_rules_by_id');
+			result_callback(rules);
+		});
 	},
+
 	get_rules : function (verse, result_callback) {
 		var params = {
 			sessionHash : vmr_services._vmr_session,
-			indexContent: verse,
+			includeGlobals : true,
+			indexContext : verse
 		};
 		$.post(_vmr_api+'regularization/get/', params, function(data) {
 			if ($(data).find('error').length > 0) {
@@ -450,7 +546,8 @@ console.log('local_service called');
 					'class' : $(this).attr('type').toLowerCase(),
 				}
 				if ($(this).attr('scope') == 'Global') {
-					rule.scope = 'global';
+					rule.scope = 'always';
+					rule.context = {};
 				}
 				else {
 					rule.scope = 'verse';
@@ -466,9 +563,15 @@ console.log('local_service called');
 					if (codes.indexOf('IGNORE_UNCLEAR') > -1) rule.conditions.ignore_unclear = true;
 					if (codes.indexOf('ONLY_NOMSAC') > -1) rule.conditions.only_nomsac = true;
 				}
+				if ($(this).find('verseException').length) {
+					rule.exceptions = [];
+					$(this).find('verseException').each(function() {
+						rule.exceptions.push($(this).attr('verse'));
+					});
+				}
 				rules.push(rule);
 			});
-			result_callback(rules);
+			return result_callback(rules);
 		}).fail(function(o) {
 			console.log('*** failed: vmr_services.get_rules');
 			result_callback([]);
@@ -476,8 +579,13 @@ console.log('local_service called');
 	},
 
 	get_rule_exceptions : function(verse, result_callback, rules, resource_types, i) {
-console.log('local_service called');
-		local_services.get_rule_exceptions(verse, result_callback, rules, resource_types, i);
+		vmr_services.get_rules(verse, function(rules) {
+			var exceptions = [];
+			for (var i = 0; i < rules.length; ++i) {
+				if (rules[i].exceptions && rules[i].exceptions.indexOf(verse) > -1) exceptions.push(rules[i]);
+			}
+			result_callback(exceptions);
+		});
 	},
 
 	update_ruleset : function (for_deletion, for_global_exceptions, for_addition, verse, success_callback, i, j, k) {
@@ -496,25 +604,30 @@ console.log('local_service called');
 			});
 		}
 		else if (k < for_global_exceptions.length) {
-			vmr_services.get_rules_by_ids([for_global_exceptions[k]._id], function (result) {
-				//we are only asking for a single rule so we can just deal with the first thing returned
-				if (result.length > 0) {
-					if (result[0].hasOwnProperty('exceptions')) {
-						if (result[0].exceptions.indexOf(verse) === -1 && verse) {
-							result[0].exceptions.push(verse);
-						}
-					}
-					else {
-						result[0].exceptions = [verse];
-					}
-					//first save the exception then continue the loop in callback
-					vmr_services.update_ruleset([], [], [result[0]], undefined, function () {
-						return vmr_services.update_ruleset(for_deletion, for_global_exceptions, for_addition, verse, success_callback, i, j, ++k);
-					});
+			var rule = for_global_exceptions[k];
+			rule._meta = {
+				_last_modified_time : new Date().getTime(),
+				_last_modified_by : vmr_services._user._id,
+				_last_modified_by_display : vmr_services._user.name
+			};
+			var params = {
+				sessionHash : vmr_services._vmr_session,
+				groupName   : vmr_services._project.project,
+				userName    : vmr_services._user._id,
+				verse       : verse,
+				regID       : rule._id
+			};
+			$.post(_vmr_api+'regularization/addexception/', params, function(data) {
+				if ($(data).find('error').length > 0) {
+console.log('*** Error: _save_regularization_rule_exception failed.');
+					alert($(data).find('error').attr('message'));
+					result_callback(-1);
 				}
 				else {
 					return vmr_services.update_ruleset(for_deletion, for_global_exceptions, for_addition, verse, success_callback, i, j, ++k);
-				}   
+				}
+			}).fail(function(o) {
+				result_callback(o.status);
 			});
 		}
 		else if (success_callback) {
