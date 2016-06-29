@@ -27,6 +27,9 @@ if (typeof LOCAL_SERVICES_DOMAIN === 'undefined') LOCAL_SERVICES_DOMAIN = SITE_D
 
 // public vmr_services methods
 return {
+	local_javascript : [
+		'http://' + SITE_DOMAIN + '/collation/js/menus.js'
+	],
 
 	_vmr_session : null,
 	_resume_after_session_callback : null,
@@ -182,31 +185,35 @@ console.log('*** Error: _save_regularization_rule failed.');
 	    }).fail(function () { result_callback(null, 400); });
 	},
 
-	_load_project(project_name, result_callback) {
+	_load_projects(project_names, result_callback) {
 		var params = {
 			sessionHash : vmr_services._vmr_session,
-			projectName : project_name,
+			projectName : project_names.join('|'),
 			detail : 'tasks'
 		};
 		$.post(_vmr_api+'projectmanagement/project/get/', params, function(data) {
-			var p = $.extend(true, {}, vmr_services._project_default);
-			p._id = $(data).find('projects > project').attr('name');
-			p.project = p._id;
-			p.book_name = $(data).find('projects > project').attr('objectPart');
-			p.book = p.book_name;
-			p.managing_editor = vmr_services._user._id;
-			p.editors = [];
-			$(data).find('projects > project > userGroup > user').each(function() {
-				p.editors.push($(this).text());
-			});
-			p.witnesses = [p.base_text];
-			$(data).find('projects > project > documentGroup > documents > document').each(function() {
-				p.witnesses.push($(this).attr('docID'));
-			});
+			var projs = [];
+			$(data).find('project').each(function() {
+				var p = $.extend(true, {}, vmr_services._project_default);
+				p._id = $(this).attr('name');
+				p.project = p._id;
+				p.book_name = $(this).attr('objectPart');
+				p.book = p.book_name;
+				p.managing_editor = vmr_services._user._id;
+				p.editors = [];
+				$(this).find('userGroup > user').each(function() {
+					p.editors.push($(this).text());
+				});
+				p.witnesses = [p.base_text];
+				$(this).find('documentGroup > documents > document').each(function() {
+					p.witnesses.push($(this).attr('docID'));
+				});
+				projs.push(p);
+			})
 
-			result_callback(p);
+			result_callback(projs);
 		}).fail(function () {
-console.log('*** failed: _load_project');
+console.log('*** failed: _load_projects');
 			result_callback(null);
 		});
 	},
@@ -309,55 +316,91 @@ console.log('*** failed: _get_available_projects');
 	_switch_project_dialog : $(`
 		<div>
 			<p>Choose Project: <select id="project_selection">
-				<option>ECM Matthew</option>
+				<option></option>
 			</select></p>
 			<button id="load_project">Load</button>
 		</div>`
 	),
+
+	// this sets up the switch project functionality
+	// it does not actually switch projects
 	switch_project : function () {	    
+		var d = vmr_services._switch_project_dialog;
+		$(d).dialog({
+			autoOpen: false,
+			title: 'Choose Project',
+			beforeClose : function() {
+				return vmr_services._project && vmr_services._project._id.length > 0;
+			}
+		});
+		$('#load_project').off('click.load_project');
+		$('#load_project').on('click.load_project', function() {
+			vmr_services._load_projects([$('#project_selection').val()], function(p) {
+				if (p && p.length) {
+					vmr_services._project = p[0];
+					CL._managing_editor = true;
+					$(d).dialog('close');
+					CL.load_single_project_menu(p[0]);
+				}
+			});
+		});
+		$('#switch_project_button').off('click.switch_project');
+		$('#switch_project_button').on('click.switch_project', vmr_services._switch_project);
+	},
+
+	// this actually initiates the switch project procedure
+	_switch_project : function() {
 		var d = vmr_services._switch_project_dialog;
 		$(d).dialog({
 			autoOpen: false,
 			title: 'Choose Project'
 		});
-		$('#load_project').off('click.load_project');
-		$('#load_project').on('click.load_project', function() {
-			$(d).dialog('close');
-			vmr_services._load_project($('#project_selection').val(), function(p) {
-				vmr_services._project = p;
-				CL.load_single_project_menu(p);
-			});
-		});
-		$('#switch_project_button').off('click.switch_project');
-		$('#switch_project_button').on('click.switch_project', function () {
-			CL._services.get_user_info(function (user) {
-				if (user) {
-					vmr_services._get_available_projects(function(projects) {
-						var t = '<option>' + projects.join('</option><option>') + '</option>';
-						$('#project_selection').html(t);
+		CL._services.get_user_info(function (user) {
+			if (user) {
+				vmr_services._get_available_projects(function(projects) {
+					var t = '<option>' + projects.join('</option><option>') + '</option>';
+					$('#project_selection').html(t);
+					if (vmr_services._project) {
 						$('#project_selection').val(vmr_services._project._id);
-						$(d).dialog('open');
-					});
-				}
-			});
+					}
+					$(d).dialog('open');
+				});
+			}
 		});
 	},
 
 	get_editing_projects : function (criteria, success_callback) {
-
-		vmr_services._project = $.extend(true, {}, vmr_services._project_default);
-		success_callback((!vmr_services._vmr_session || !vmr_services._vmr_session.length) ? [] : [vmr_services._project]);
-			
+		vmr_services._get_available_projects(function(projects) {
+			vmr_services._load_projects(projects, function(p) {
+				success_callback(p);
+			});
+		});
 	},
 	initialise_editor : function () {
+		// start with something defaulted
+		vmr_services._project = $.extend(true, {}, vmr_services._project_default);
+
+		var criteria;
 		CL._services.show_login_status(function() {
+			if (typeof output !== 'undefined') {
+				CL._display_mode = output;
+			}
 			CL._container = document.getElementById('container');
 			CL._services.get_user_info(function (user) {	// success
-				CL._services.get_editing_projects(undefined, function (projects) {
-					vmr_services._project = projects[0];
-					CL.load_single_project_menu(projects[0]);
-					CL._managing_editor = true;
-				});
+				if (user) {
+					criteria = {'editors' : {'$in' : [user._id]}};
+
+					// TODO: there are still 3 MAG calls in the menus.js
+					// so we can't use this.  Use our switch_project function instead
+					
+					//MENU.choose_menu_to_display(user, criteria, 'collation');
+					
+					CL.load_single_project_menu(vmr_services._project);
+					vmr_services._switch_project();
+				}
+				else {		// failure
+					CL._container.innerHTML = '<p>Please login using the link in the top right corner to use the editing interface</p>';
+				}
 			});
 		});
 	},
@@ -754,11 +797,13 @@ console.log('*** failed: user/get');
 				result_callback(result);
 			});
 		}
-		// TODO: sometimes we're called with the actual collation object, no an ID. Is this OK?
+		// TODO: sometimes we're called with the actual collation object, not an ID. Is this OK?
 		else {
 			result_callback(id);
 		}
 	},
+
+
 	do_collation : function(verse, options, result_callback) {
 	    var url;
 	    if (typeof options === "undefined") {
@@ -785,8 +830,8 @@ console.log('*** failed: user/get');
 	},
 
 	_project_default : {
-			_id: 'ECM Matthew',
-			project: 'ECM Matthew',
+			_id: '',
+			project: '',
 			V_for_supplied: true,
 			collation_source: 'WCE',
 			book_name: 'Matthew',
