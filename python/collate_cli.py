@@ -1,3 +1,4 @@
+from __future__ import print_function
 import sys
 import os
 import imp
@@ -6,13 +7,17 @@ import StringIO
 from collation.preprocessor import PreProcessor
 from collation.exporter_factory import ExporterFactory
 
+
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
 def collation(params):
     requested_witnesses = params['data_settings']['witness_list']    
     data_input = params['data_input']  
     rules = params['rules']
     
-    if request.params.accept:
-        accept = request.params.accept
+    if 'accept' in params:
+        accept = params['accept']
     else:
         accept = 'lcs'
     
@@ -25,6 +30,7 @@ def collation(params):
         basetext_transcription = params['data_settings']['base_text']
     
     collate_settings = {}
+    #collate_settings['host'] = 'localhost/community/vmr/api'
     collate_settings['host'] = 'localhost:7369'
     if 'algorithm' in params['algorithm_settings']:
         collate_settings['algorithm'] = params['algorithm_settings']['algorithm']
@@ -57,22 +63,22 @@ def collation(params):
         
     p = PreProcessor(display_settings_config, local_python_functions, rule_conditions_config)
     output = p.process_witness_list(data_input, requested_witnesses, rules, basetext_transcription, project, display_settings, collate_settings, accept)
-    print(output)
-    response.content_type = 'application/json'
+    eprint(output)
+#    response.content_type = 'application/json'
     return json.dumps(output)#, default=json_util.default)
     
 
-def apparatus():
-    data = json.loads(request.params.data)
-    format = request.params.format
+def apparatus(params):
+    data = json.loads(params.data)
+    format = params.format
     if not format:
         format = 'xml'
     if format == 'xml':
         file_ext = 'xml'
     else:
         file_ext = 'txt'
-    exporter_settings = request.params.settings
-    print(exporter_settings)
+    exporter_settings = params.settings
+    eprint(exporter_settings)
     exf = ExporterFactory(exporter_settings)
     app = StringIO.StringIO(exf.export_data(data, format))
     response.content_type = 'text/plain'
@@ -84,4 +90,4 @@ def apparatus():
 
 args = sys.argv
 params = json.loads(args[1])
-collation(params)
+print(collation(params))

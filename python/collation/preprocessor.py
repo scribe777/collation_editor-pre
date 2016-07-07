@@ -1,8 +1,14 @@
 #-*- coding: utf-8 -*-
+from __future__ import print_function
 import json
 from collation.postprocessor import PostProcessor
 import urllib2
 from collation.regulariser import Regulariser
+import sys
+
+
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
 
 class PreProcessor(Regulariser):
     
@@ -90,9 +96,9 @@ class PreProcessor(Regulariser):
     
     
     def regularise(self, decisions, witnesses, verse, settings, collation_settings, project, accept):
-        print(verse)
+        eprint(verse)
         """Regularise the witness."""
-        print('There are %s decisions' % len(decisions))
+        eprint('There are %s decisions' % len(decisions))
         for witness in witnesses['collatable']:
             for token in witness['tokens']:
                 hit, normalised, details = self.regularise_token(token, decisions, 'pre-collate')
@@ -202,12 +208,13 @@ class PreProcessor(Regulariser):
 
     def do_collate(self, payload, accept, algorithm, tokenComparator, host='localhost'):
         """Do the collation"""
-        print('COLLATING')
-        print('algorithm - %s' % (algorithm))
-        print('tokenComparator - %s' % (tokenComparator))
+        eprint('COLLATING')
+        eprint('algorithm - %s' % (algorithm))
+        eprint('tokenComparator - %s' % (tokenComparator))
         payload['algorithm'] = algorithm #'needleman-wunsch'#'dekker' #'needleman-wunsch'#'dekker-experimental'#
         payload['tokenComparator'] = tokenComparator #{"type": "levenshtein", "distance": 2}#{'type': 'equality'}
-        target = 'http://%s/collate' % host
+        target = 'http://%s/collate/' % host
+        eprint('target - %s' % (target))
         json_witnesses = json.dumps(payload)#, default=json_util.default)
         accept_header = self.convert_header_argument(accept)
         headers = {'content-type': 'application/json',

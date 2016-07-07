@@ -376,6 +376,7 @@ console.log('*** failed: _get_available_projects');
 			});
 		});
 	},
+	isAdmin : typeof isAdmin === 'undefined' ? false : true,
 	initialise_editor : function () {
 		// start with something defaulted
 		vmr_services._project = $.extend(true, {}, vmr_services._project_default);
@@ -395,8 +396,19 @@ console.log('*** failed: _get_available_projects');
 					
 					//MENU.choose_menu_to_display(user, criteria, 'collation');
 					
-					CL.load_single_project_menu(vmr_services._project);
-					vmr_services._switch_project();
+					if (typeof siteName === 'undefined') {
+						CL.load_single_project_menu(vmr_services._project);
+						vmr_services._switch_project();
+					}
+					else {
+						vmr_services._load_projects([siteName], function(p) {
+							if (p && p.length) {
+								vmr_services._project = p[0];
+								CL._managing_editor = vmr_services.isAdmin;
+								CL.load_single_project_menu(p[0]);
+							}
+						});
+					}
 				}
 				else {		// failure
 					CL._container.innerHTML = '<p>Please login using the link in the top right corner to use the editing interface</p>';
@@ -809,7 +821,7 @@ console.log('*** failed: user/get');
 	    if (typeof options === "undefined") {
 		options = {};
 	    }
-	    url = 'http://' + LOCAL_SERVICES_DOMAIN + '/collationserver/' + verse + '/';
+	    url = 'http://' + LOCAL_SERVICES_DOMAIN + '/vmrcre_collation.jsp';
 	    if (options.hasOwnProperty('accept')) {
 		url += options.accept;
 	    }    
