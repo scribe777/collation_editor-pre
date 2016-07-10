@@ -89,5 +89,6 @@ def apparatus(params):
     
 
 args = sys.argv
-params = json.loads(args[1])
+data = sys.stdin.read()
+params = json.loads(data)
 print(collation(params))
