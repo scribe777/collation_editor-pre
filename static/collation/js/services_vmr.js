@@ -418,10 +418,12 @@ console.log('*** failed: _get_available_projects');
 	},
 
 	get_adjoining_verse : function (verse, is_previous, result_callback) {
-		return result_callback(null);
+		$.post(_vmr_api + "metadata/v11n/parse/", { text : verse, intros : false, step : is_previous ? -1 : 1 }, function (result) {
+			return result_callback($(result).find('verse').attr('osisID'));
+		});
 	},
 
-	get_verse_data : function (verse, witness_list, private_witnesses, success_callback, fail_callback) {
+	get_verse_data : function (verse, witness_list, private_witnesses, success_callback) {
 		var url, options;
 		options = {};
 		url = _vmr_api + "transcript/get/";
@@ -445,25 +447,24 @@ console.log('*** failed: _get_available_projects');
 				(private_witnesses?vmr_services._last_private_transcription_siglum_map:vmr_services._last_transcription_siglum_map).set(w.document_id, w.siglum);
 				if (private_witnesses) vmr_services._make_private_witness(w);
 			}
-			success_callback(collate_data);
+			success_callback(collate_data, RG.calculate_lac_wits);
 
 		}).fail(function(o) {
-			fail_callback(o.status);
+			success_callback([], RG.calculate_lac_wits);
 		});
 	},
 
 	get_siglum_map : function (id_list, result_callback) {
-		var siglum_map, w;
-		siglum_map = {};
-		//any t with no children or text nodes add sigla to siglum_map
-		for (var i = 0; i < id_list.length; ++i) {
-			w = vmr_services._last_transcription_siglum_map.get(id_list[i]);
-			if (!w) w = vmr_services._last_private_transcription_siglum_map.get(id_list[i]);
-			if (w) {
-				siglum_map[w] = id_list[i];
-			}
+		if (id_list.length) {
+			$.post(_vmr_api + "metadata/liste/search/", { docID : id_list.join('|'), detail : 'document' }, function (result) {
+				var siglum_map = {};
+				$(result).find('manuscript').each(function() {
+					siglum_map[$(this).attr('gaNum')] = $(this).attr('docID');
+				});
+				result_callback(siglum_map);
+			});
 		}
-		result_callback(siglum_map);
+		else result_callback({});
 	},
 
 	
@@ -696,7 +697,7 @@ console.log('*** Error: _save_regularization_rule_exception failed.');
 		collation._id = vmr_services._user._id+'/'+key;
 		vmr_services._get_resource(key, null, null, function(result, status) {
 		    // if exists
-		    if (status == 200) {
+		    if (status == 200 && result) {
 			if (overwrite_allowed) {
 			    var confirmed = confirm(confirm_message);
 			    if (confirmed === true) {
@@ -740,7 +741,7 @@ console.log('*** Error: _save_regularization_rule_exception failed.');
 		if (typeof i === 'undefined') {
 			collations = [];
 			if (user_id) {
-				return get_saved_collations(verse, user_id, result_callback, collations, [user_id], 0);
+				return vmr_services.get_saved_collations(verse, user_id, result_callback, collations, [user_id], 0);
 			}
 			else {
 				return vmr_services.get_saved_collations(verse, user_id, result_callback, collations, vmr_services._project.editors, 0);
