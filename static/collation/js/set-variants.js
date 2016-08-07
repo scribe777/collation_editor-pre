@@ -46,7 +46,7 @@ var SV = (function () {
             }
             //make sure we have a container to put things in
             if (options.hasOwnProperty('container')) {                
-                container = options.container;
+                if (container !== options.container) container = options.container;
             } else {
                 container = document.getElementsByTagName('body')[0];
             }
