@@ -19,6 +19,8 @@
   <Optional feature="opensocial-0.8"/>
 </ModulePrefs>
 
+<UserPref name="baseTextDocID" datatype="string" display_name="Base Text DocID" default_value="" />
+
 <UserPref name="height" datatype="enum" display_name="Gadget Height" default_value="400">
 	<EnumValue value="200" display_value="Short"/>
 	<EnumValue value="400" display_value="Medium"/>
@@ -69,16 +71,7 @@
 
 <script type="text/javascript">
 
-var MARGIN=0;
-var projectID = 0;
-var projectName = '';
-var projectXML = null;
-var siteName = null;
-
-var isAdmin = false;
-var isManager = false;
-
-var allowVolunteers = false;
+var baseTextDocID = null;
 
 </script>
 
@@ -104,26 +97,12 @@ var allowVolunteers = false;
 
 VMR.init(function() {
 
-	VMR.serviceRequest('auth/hasrole', { role : 'VMR Administrator' }, function(o) {
-		var xml = $.parseXML(o.text);
-		if ($(xml).find('role').attr('hasRole') == 'true') {
-			isAdmin = true;
-		}
-		var postData = {
-			role : 'Site Administrator',
-			userGroupID : parent.Liferay.ThemeDisplay.getScopeGroupId()
-		};
-		VMR.serviceRequest('auth/hasrole', postData, function(o) {
-			var xml = $.parseXML(o.text);
-			siteName = $(xml).find('role').attr('userGroupName');
-			if ($(xml).find('role').attr('hasRole') == 'true') {
-				isAdmin = true;
-			}
-			CL.initialise_editor();
-		});
-	});
+	baseTextDocID = parseInt(VMR.prefs.getString('baseTextDocID'));
+	if (isNaN(baseTextDocID)) baseTextDocID = null;
 
-}, '../../../../');
+	CL.initialise_editor();
+
+}, '../../../../', true);
 
 </script>
 

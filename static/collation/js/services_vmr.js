@@ -194,7 +194,13 @@ console.log('*** Error: _save_regularization_rule failed.');
 		$.post(_vmr_api+'projectmanagement/project/get/', params, function(data) {
 			var projs = [];
 			$(data).find('project').each(function() {
+				var projectConfig = null;
+				try {
+					projectConfig = $.parseJSON($(this).find('configuration').text());
+				} catch (err) {}
 				var p = $.extend(true, {}, vmr_services._project_default);
+				if (projectConfig) $.extend(true, p, projectConfig);
+				if (typeof baseTextDocID !== 'undefined' && baseTextDocID) p.base_text = baseTextDocID;
 				p._id = $(this).attr('name');
 				p.project = p._id;
 				p.book_name = $(this).attr('objectPart');
@@ -376,10 +382,11 @@ console.log('*** failed: _get_available_projects');
 			});
 		});
 	},
-	isAdmin : typeof isAdmin === 'undefined' ? false : true,
+	isAdmin : typeof VMR === 'undefined' ? false : VMR.isAdmin,
 	initialise_editor : function () {
 		// start with something defaulted
 		vmr_services._project = $.extend(true, {}, vmr_services._project_default);
+		if (typeof baseTextDocID !== 'undefined' && baseTextDocID) vmr_services._project.base_text = baseTextDocID;
 
 		var criteria;
 		CL._services.show_login_status(function() {
@@ -396,12 +403,12 @@ console.log('*** failed: _get_available_projects');
 					
 					//MENU.choose_menu_to_display(user, criteria, 'collation');
 					
-					if (typeof siteName === 'undefined') {
+					if (typeof VMR === 'undefined' || typeof VMR.siteName === 'undefined') {
 						CL.load_single_project_menu(vmr_services._project);
 						vmr_services._switch_project();
 					}
 					else {
-						vmr_services._load_projects([siteName], function(p) {
+						vmr_services._load_projects([VMR.siteName], function(p) {
 							if (p && p.length) {
 								vmr_services._project = p[0];
 								CL._managing_editor = vmr_services.isAdmin;
