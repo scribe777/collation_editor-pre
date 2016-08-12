@@ -21,6 +21,11 @@
 
 <UserPref name="baseTextDocID" datatype="string" display_name="Base Text DocID" default_value="" />
 
+<UserPref name="transType" datatype="enum" display_name="Transcription Type" default_value="1">
+	<EnumValue value="1" display_value="Project"/>
+	<EnumValue value="2" display_value="Published"/>
+	<EnumValue value="3" display_value="Current User"/>
+</UserPref>
 <UserPref name="height" datatype="enum" display_name="Gadget Height" default_value="400">
 	<EnumValue value="200" display_value="Short"/>
 	<EnumValue value="400" display_value="Medium"/>
@@ -72,6 +77,7 @@
 <script type="text/javascript">
 
 var baseTextDocID = null;
+var transcriptionUser = null;
 
 </script>
 
@@ -96,6 +102,10 @@ var baseTextDocID = null;
 <script type="text/javascript">
 
 VMR.init(function() {
+
+	var transType = VMR.prefs.getString('transType');
+	if (transType == 1) transcriptionUser = VMR.siteName;
+	else if (transType == 3) transcriptionUser = VMR.userName;
 
 	baseTextDocID = parseInt(VMR.prefs.getString('baseTextDocID'));
 	if (isNaN(baseTextDocID)) baseTextDocID = null;

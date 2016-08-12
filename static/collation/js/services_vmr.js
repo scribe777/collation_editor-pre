@@ -436,6 +436,7 @@ console.log('*** failed: _get_available_projects');
 		url = _vmr_api + "transcript/get/";
 		
 		options = {'sessionHash' : vmr_services._vmr_session, 'format': 'wce', 'indexContent': verse, 'docID': witness_list.join('|')};
+		if (typeof transcriptionUser !== 'undefined' && transcriptionUser) options.userName = transcriptionUser;
 		if (private_witnesses) options.userName = vmr_services._user._id;
 
 		$.post(url, options, function (result) {
@@ -834,9 +835,16 @@ console.log('*** failed: user/get');
 		url += options.accept;
 	    }    
 	    $.post(url, { options : JSON.stringify(options) }, function(data) {
-		result_callback(data);
+		if (data) {
+			result_callback(data);
+		}
+		else {
+			alert('no data was returned from collation.');
+			SPN.remove_loading_overlay();
+		}
 	    }).fail(function(o) {
-		result_callback(null);
+		alert('there was a problem with collation or post processing.');
+        	SPN.remove_loading_overlay();
 	    });
 	},
 
