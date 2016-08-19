@@ -27,11 +27,16 @@ if (typeof LOCAL_SERVICES_DOMAIN === 'undefined') LOCAL_SERVICES_DOMAIN = SITE_D
 
 // public vmr_services methods
 return {
+	set_vmr_services : function (rootURL) {
+		_vmr_api = rootURL;
+		if (typeof VMRCRE !== 'undefined') VMRCRE.servicesURL = _vmr_api;
+		_data_store_service_url = _vmr_api + 'projectmanagement/project/data/';
+	},
 	local_javascript : [
-		'http://' + SITE_DOMAIN + '/collation/js/menus.js'
+		(SITE_DOMAIN.length < 4 || SITE_DOMAIN.substring(0,4) !== 'http' ? 'http://' : '') + SITE_DOMAIN + '/collation/js/menus.js'
 	],
 
-	_vmr_session : null,
+	_vmr_session : typeof VMR !== 'undefined' ? VMR.getSessionHash() : null,
 	_resume_after_session_callback : null,
 	_resume_after_session_param1 : null,
 	_resume_after_session_param2 : null,
@@ -269,7 +274,7 @@ console.log('*** failed: _get_available_projects');
 	},
 
 //	get_login_url : function () { return 'http://ntvmr.uni-muenster.de/community/vmr/api/auth/session/open/form?redirURL=http://'+SITE_DOMAIN + '/collation/'; },
-	get_login_url : function () { return 'http://ntvmr.uni-muenster.de'; },
+	get_login_url : function () { return (typeof VMR !== 'undefined') ? VMR.httpRoot : 'http://ntvmr.uni-muenster.de'; },
 	get_user_info : function (success_callback) {
 
 		if (vmr_services._user != -1) return success_callback(vmr_services._user);
@@ -278,7 +283,7 @@ console.log('*** failed: _get_available_projects');
 			vmr_services._resume_after_session_callback = vmr_services.get_user_info;
 			vmr_services._resume_after_session_param1 = success_callback;
 			var ifr = document.createElement('IFRAME');
-			ifr.src = "http://ntvmr.uni-muenster.de/community/vmr/api/auth/session/check?ir=parent.postMessage({'msg_type':'set_vmr_session','vmr_session':'{s}'}, '*')";
+			ifr.src = _vmr_api + "auth/session/check?ir=parent.postMessage({'msg_type':'set_vmr_session','vmr_session':'{s}'}, '*')";
 			ifr.style.display = 'none';
 			document.body.appendChild(ifr);
 			return;
@@ -830,7 +835,9 @@ console.log('*** failed: user/get');
 	    if (typeof options === "undefined") {
 		options = {};
 	    }
-	    url = 'http://' + LOCAL_SERVICES_DOMAIN + '/vmrcre_collation.jsp';
+	    url = LOCAL_SERVICES_DOMAIN;
+            if (url.length < 4 || url.substring(0,4) !== 'http') url = 'http://'+LOCAL_SERVICES_DOMAIN;
+	    url += '/vmrcre_collation.jsp';
 	    if (options.hasOwnProperty('accept')) {
 		url += options.accept;
 	    }    

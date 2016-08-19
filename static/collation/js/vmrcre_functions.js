@@ -2,8 +2,8 @@ var VMRCRE = (function () {
 
     return {
 
+	servicesURL : (typeof VMR !== 'undefined') ? VMR.servicesURL : 'http://ntvmr.uni-muenster.de/community/vmr/api',
 
-	servicesURL : 'http://ntvmr.uni-muenster.de/community/vmr/api',
 
 	chapterSelectChanged : function() {
 	    var book = $("#bookselect").val();

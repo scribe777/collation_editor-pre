@@ -110,6 +110,10 @@ VMR.init(function() {
 	baseTextDocID = parseInt(VMR.prefs.getString('baseTextDocID'));
 	if (isNaN(baseTextDocID)) baseTextDocID = null;
 
+	vmr_services.set_vmr_services(VMR.servicesURL);
+	SITE_DOMAIN = VMR.gadgetsRoot + 'modules/collation_editor/static';
+	LOCAL_SERVICES_DOMAIN = VMR.gadgetsRoot + 'modules/collation_editor/static/collation';
+
 	CL.initialise_editor();
 
 }, '../../../../', true);
